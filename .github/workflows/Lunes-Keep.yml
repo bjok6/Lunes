@@ -12,7 +12,7 @@ jobs:
     name: 执行保活
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       actions: write
     concurrency:
       group: lunes-keepalive
@@ -77,6 +77,25 @@ jobs:
 #          name: screenshots-${{ github.run_number }}
 #          path: output/screenshots/
 #          retention-days: 3
+
+      # ========== 防止 60 天无活动禁用 workflow ==========
+      - name: 📅 更新 time.txt 保持仓库活跃
+        if: always()
+        run: |
+          echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC')" > time.txt
+          echo "# 此文件由 GitHub Actions 自动更新，用于防止仓库 60 天无活动导致 scheduled workflow 被禁用" >> time.txt
+          echo "# Auto-updated by GitHub Actions to prevent scheduled workflows from being disabled after 60 days of inactivity" >> time.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add time.txt
+          # 只有内容变化时才 commit（避免空 commit）
+          if git diff --staged --quiet; then
+            echo "time.txt 无变化，跳过 commit"
+          else
+            git commit -m "chore: update time.txt to keep workflow alive [skip ci]"
+            git push
+            echo "✅ time.txt 已更新并推送"
+          fi
 
       - name: 清理旧运行
         uses: Mattraks/delete-workflow-runs@v2
